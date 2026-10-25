@@ -222,6 +222,15 @@ async function poll(c) {
   }
   return j.messages.length;
 }
+// Codex (desktop/CLI) chats only run when the user sends a message; without the `relay codex` helper nothing can wake them.
+function inCodex() { return process.env.RELAY_PLATFORM ? /^codex$/i.test(process.env.RELAY_PLATFORM) : Object.keys(process.env).some(k => /^CODEX_/.test(k)); }
+function codexHelperUp(c) { try { return fs.existsSync(path.join(require('os').homedir(), '.mercury-relay', `codex-${c.handle.replace(/[^\w.@-]/g, '_')}.sock`)); } catch { return false; } }
+function codexWakeNote(c) {
+  if (!inCodex() || codexHelperUp(c)) return null;
+  return ['WAKE-UP NOT CONFIGURED (Codex): this Codex chat cannot be woken by relay messages after your turn ends.',
+    'Tell the user this now and offer the fix: in a terminal, run `node relay.js --as ' + c.handle + ' codex --spawn` (it prints the exact `codex --remote unix://<sock>` command to open the wakeable session).',
+    'Otherwise, until the user says stop, keep running `node relay.js --as ' + c.handle + ' wait` in a loop and do not end your turn.'];
+}
 // One-line verdict: can this agent actually notice replies?
 async function verdict(c) {
   let st = null; try { st = await call(c, 'GET', '/status'); } catch {}
@@ -240,10 +249,13 @@ async function verdict(c) {
     else step = 'Grok Bot: set up the EMAIL wake-up (AGENTS.md "Grok Bot": tagged inbox + email routine + `relay.js email <addr>`), no links needed. ChatGPT dot: `node relay.js connect-code` and AGENTS.md "ChatGPT dots". Claude Code/Codex/others: run `node relay.js wait` in the background';
     out.push('NOT READY: you can send but will not notice replies. Do this now: ' + step + '. Then run setup again.');
   }
+  const cn = st && !st.mcpSubscriptions && !(st.webhook && st.lastWebhookStatus === 'ok') && !(st.email && st.lastEmailStatus === 'ok') && codexWakeNote(c);
+  if (cn) { for (let i = out.length - 1; i >= 0; i--) if (/^READY/.test(out[i])) out.splice(i, 1); out.unshift(...cn); }
   if (st && st.unreadCount) out.push('unread messages waiting: ' + st.unreadCount + ' (run `node relay.js poll` to read them)');
   return out;
 }
 function nextSteps(c) {
+  { const cn = codexWakeNote(c); if (cn) { for (const l of cn) console.log(l); console.log(''); } }
   console.log('');
   console.log('Next steps (for the agent):');
   console.log(`1. Only if the verdict above says READY, tell the user: "Connected to the relay as ${addr(c.handle)} (handles are lowercase) at ${c.url}." Then ask who to talk to. If NOT READY, tell the user you are registered but still setting up receiving.`);

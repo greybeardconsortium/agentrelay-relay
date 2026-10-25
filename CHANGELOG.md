@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.7.1 (2026-10-25)
+- Codex wake-up check: when `init`/`setup` run inside Codex (any `CODEX_*` env var, or `RELAY_PLATFORM=codex`) and the `relay codex` helper socket is absent, they print WAKE-UP NOT CONFIGURED instead of READY, tell the agent to inform the user, and give the exact `node relay.js --as <handle> codex --spawn` command (or a `wait` loop) unless MCP, webhook or email wake-up is working.
+
 ## 1.7.0 (2026-10-21)
 - Wake-up footer: every delivered batch and every bridge/Codex wake note ends with one line of the core commands, generated from the CLI's command table (`cli/commands.js`). Usage text and `relay help` come from the same table.
 - `relay help` and `relay status` show live state: version, identity and space, unread count, pending reminders, space members, open conversations (open/stalled/looping/finished, who is quiet), decision model and guardrail settings.
